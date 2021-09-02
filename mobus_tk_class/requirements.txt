@@ -1,0 +1,6 @@
+modbus-tk==1.1.2
+pyDH==0.1.6
+simonspeckciphers==1.0.0
+cryptography==3.4.8
+PyQt5
+pyperclip==1.8.2

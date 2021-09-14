@@ -1,19 +1,21 @@
 # NCCU_Encryption_ui
 AES encryption, Lightweight encryption
 
-### Start:
+### Usage:
 
-cd mobus_tk_class/ui/slave
+slave端
 
-run python3 main.py  (GUI)
+cd mobus_tk_class/ui/slave 
 
-or
+sudo python3 tcpslave_ui.py
 
-run python3 tcpslave.py 
+master端
+
+python3 tcpmaster_ui.py
 
 
 
-do the same thing with master
+
 
 ### Reference:
 

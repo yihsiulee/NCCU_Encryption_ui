@@ -25,7 +25,7 @@ from lib import common
 
 class TcpSlave():
 
-    def __init__(self, slave_id=1, name='0', address=0, length=500):
+    def __init__(self, slave_id=1, name='0', address=0, length=42):
         self.slave_id = slave_id
         self.name = name
         self.address = address
@@ -33,7 +33,7 @@ class TcpSlave():
         self.DH = pyDH.DiffieHellman(5)
         self.PK = self.DH.gen_public_key()
         self.server = self.init_modbus_slave()
-
+        
     """
     用AES解密master傳來的資料
 
@@ -45,7 +45,7 @@ class TcpSlave():
         aead = AEAD()
         slave = self.server.get_slave(self.slave_id)
         values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
+        print("The receive values are" + str(values) )
         tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
         cts = common.combine(values, 0, tmp_nones[0])
         nones = common.combine(tmp_nones, 1, tmp_nones[0])
@@ -57,8 +57,7 @@ class TcpSlave():
         end_time = time.time()
         print("after decrypt value is  " + str(result))
         print("decrypt time is  " + str(end_time - start_time))
-        return str(result)
-
+        return str(values), str(result)
     """
     用present解密master傳來的資料
 
@@ -69,7 +68,7 @@ class TcpSlave():
     def dec_present(self):
         slave = self.server.get_slave(self.slave_id)
         values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
+        print("The receive values are" + str(values) )
         tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
         cts = common.combine(values, 0, tmp_nones[0])
         result = []
@@ -87,7 +86,7 @@ class TcpSlave():
         end_time = time.time()
         print("after decrypt value is  " + str(result))
         print("decrypt time is  " + str(end_time - start_time))
-        return str(result)
+        return str(values), str(result)
 
     """
     用speck解密master傳來的資料
@@ -99,7 +98,7 @@ class TcpSlave():
     def dec_speck(self):
         slave = self.server.get_slave(self.slave_id)
         values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
+        print("The receive values are" + str(values) )
         tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
         cts = common.combine(values, 0, tmp_nones[0])
         result = []
@@ -111,7 +110,7 @@ class TcpSlave():
         end_time = time.time()
         print("after decrypt value is  " + str(result))
         print("decrypt time is  " + str(end_time - start_time))
-        return str(result)
+        return str(values), str(result)
 
     """
     用simon解密master傳來的資料
@@ -123,7 +122,7 @@ class TcpSlave():
     def dec_simon(self):
         slave = self.server.get_slave(self.slave_id)
         values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
+        print("The receive values are" + str(values) )
         tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
         cts = common.combine(values, 0, tmp_nones[0])
         result = []
@@ -135,7 +134,7 @@ class TcpSlave():
         end_time = time.time()
         print("after decrypt value is  " + str(result))
         print("decrypt time is  " + str(end_time - start_time))
-        return str(result)
+        return str(values), str(result)
 
     """
     初始modbus_slave設定

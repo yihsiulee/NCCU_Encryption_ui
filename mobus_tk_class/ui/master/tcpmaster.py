@@ -16,6 +16,7 @@ import pyDH
 import logging
 import sys
 import time
+
 from speck import SpeckCipher
 from simon import SimonCipher
 
@@ -219,6 +220,7 @@ class TcpMaster():
 
         print('generate share key:\t' + str(share))
         return share
+        
 
 
 def main():

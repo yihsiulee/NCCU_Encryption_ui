@@ -23,7 +23,7 @@ class MainWindow(QWidget):
         self.__msgEdit = QLineEdit()
         encryptButton = QPushButton("Encrypt")
         decryptButton = QPushButton("Decrypt")
-        getKeyButton = QPushButton("Get Key")
+        getKeyButton = QPushButton("Gen Key")
         copyButton = QPushButton("Copy")
         
         aesRadioButton = QRadioButton("AES")
@@ -86,29 +86,54 @@ class MainWindow(QWidget):
         self.show_log("The generated shared key is " + str(dhKey))
         
     def __AES_encrypt(self):
-        text = self.__msgEdit.text()
-        cts = self.master.enc_AES([text])
-        self.show_log("The original value is " + str(text))
-        self.show_log("After AES encryption, the values are " + str(cts))
-        self.master.send_to_slave(cts)
+        try:
+            text = self.__msgEdit.text()
+            cts = self.master.enc_AES([text])
+            self.show_log("The original value is " + str(text))
+            self.show_log("After AES encryption, the values are " + str(cts))
+            self.master.send_to_slave(cts)
+        except Exception as e:
+            exceptionLog = str(e)   
+            self.show_log("Exception:" + exceptionLog)
+        
 
     def __handleEncryptClick(self):
         text = self.__msgEdit.text()
         self.show_log("The original value is " + str(text))
         if self.algoSet == 0:
+            try:
                 cts = self.master.enc_AES([text])
                 self.show_log("After AES encryption, the values are " + str(cts))
+            except Exception as e:
+                exceptionLog = str(e)   
+                self.show_log("Exception:" + exceptionLog)
         elif self.algoSet == 1:
+            try:
                 cts = self.master.enc_present([text])
                 self.show_log("After PRESENT encryption, the values are " + str(cts))
+            except Exception as e:
+                exceptionLog = str(e)   
+                self.show_log("Exception:" + exceptionLog)
         elif self.algoSet == 2:
+            try:
                 cts = self.master.enc_speck([text])
                 self.show_log("After SPECK encryption, the values are " + str(cts))
+            except Exception as e:
+                exceptionLog = str(e)   
+                self.show_log("Exception:" + exceptionLog)
         else:
+            try:
                 cts = self.master.enc_simon([text])
                 self.show_log("After Simon encryption, the values are " + str(cts))
+            except Exception as e:
+                exceptionLog = str(e)   
+                self.show_log("Exception:" + exceptionLog)
+        try:
+            self.master.send_to_slave(cts)
+        except Exception as e:
+                exceptionLog = str(e)   
+                self.show_log("Exception:" + exceptionLog)
         
-        self.master.send_to_slave(cts)
                 
 
 

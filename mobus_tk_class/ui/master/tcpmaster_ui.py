@@ -129,11 +129,11 @@ class MainWindow(QWidget):
             except Exception as e:
                 exceptionLog = str(e)   
                 self.show_log("Exception:" + exceptionLog)
-        try:
-            self.master.send_to_slave(cts)
-        except Exception as e:
-                exceptionLog = str(e)   
-                self.show_log("Exception:" + exceptionLog)
+        # try:
+        #     self.master.send_to_slave(cts)
+        # except Exception as e:
+        #         exceptionLog = str(e)   
+        #         self.show_log("Exception:" + exceptionLog)
         
                 
 

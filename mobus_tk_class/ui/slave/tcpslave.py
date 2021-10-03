@@ -10,7 +10,7 @@
 from logging import raiseExceptions
 import sys
 
-from nose import exc
+# from nose import exc
 from tcpmaster import TcpMaster
 
 import modbus_tk

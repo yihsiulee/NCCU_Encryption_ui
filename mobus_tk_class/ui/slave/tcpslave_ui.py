@@ -75,6 +75,8 @@ class MainWindow(QWidget):
         #encryptButton.clicked.connect(self.__handleEncryptClick)
         decryptButton.clicked.connect(self.__handleDecryptClick)
         getKeyButton.clicked.connect(self.__getKey)
+
+        
         # copyButton.clicked.connect(self.__handleCopy) 
         
 
@@ -85,32 +87,44 @@ class MainWindow(QWidget):
 
     def __getKey(self):
         # self.shareKey = self.master.get_key()
-        dhKey = self.slave.get_key()
-        self.__keyEdit.setText(dhKey)
-        self.show_log("The received shared key is " + str(dhKey))
+        try:
+        	dhKey = self.slave.get_key()
+        	self.__keyEdit.setText(dhKey)
+        	self.show_log("The received shared key is " + str(dhKey))
+        except Exception as e:
+        	exceptionLog = str(e)	
+        	self.show_log("Exception:" + exceptionLog)
+        
         
     def __handleDecryptClick(self):
         
        #self.show_log("1The received values are " + str(self.slave.getServer().get_slave(self.slave_id)
-        start_time = time.time()
-        if self.algoSet == 0:
-                values, result = self.slave.dec_AES()
-                self.show_log("The receive values are" + str(values) )
-                self.show_log("After AES decryption, the original value is " + str(result))
-        elif self.algoSet == 1:
-                values, result = self.slave.dec_present()
-                self.show_log("The receive values are" + str(values) )
-                self.show_log("After PRESENT encryption, the original value is " + str(result))
-        elif self.algoSet == 2:
-                values, result = self.slave.dec_speck()
-                self.show_log("The receive values are" + str(values) )
-                self.show_log("After SPECK encryption, the original value is " + str(result))
-        else:
-                values, result = self.slave.dec_simon()
-                self.show_log("The receive values are" + str(values) )
-                self.show_log("After Simon encryption, the original value is " + str(result))
-        end_time = time.time()
-        self.show_log("The decryption time is  " + str(end_time - start_time))
+        try:
+        	start_time = time.time()
+
+	        if self.algoSet == 0:
+	                values, result = self.slave.dec_AES()
+	                self.show_log("The receive values are" + str(values) )
+	                self.show_log("After AES decryption, the original value is " + str(result))
+	        elif self.algoSet == 1:
+	                values, result = self.slave.dec_present()
+	                self.show_log("The receive values are" + str(values) )
+	                self.show_log("After PRESENT encryption, the original value is " + str(result))
+	        elif self.algoSet == 2:
+	                values, result = self.slave.dec_speck()
+	                self.show_log("The receive values are" + str(values) )
+	                self.show_log("After SPECK encryption, the original value is " + str(result))
+	        else:
+	                values, result = self.slave.dec_simon()
+	                self.show_log("The receive values are" + str(values) )
+	                self.show_log("After Simon encryption, the original value is " + str(result))
+	    
+	        end_time = time.time()
+	        self.show_log("The decryption time is  " + str(end_time - start_time))
+
+        except:
+        	self.show_log("Exception: The algo or key is wrong")
+        
             
     def __handleEncryptClick(self):
         text = self.__msgEdit.text()

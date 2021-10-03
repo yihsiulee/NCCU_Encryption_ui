@@ -7,7 +7,10 @@
  This is distributed under GNU LGPL license, see license.txt
 """
 
+from logging import raiseExceptions
 import sys
+
+from nose import exc
 from tcpmaster import TcpMaster
 
 import modbus_tk
@@ -15,24 +18,35 @@ import modbus_tk.defines as cst
 from modbus_tk import modbus_tcp
 import pyDH
 import time
+import socket
+import base64
+import hashlib
+import Padding
 from speck import SpeckCipher
 from simon import SimonCipher
-
+import threading
 from lib.AES import AEAD
+from lib.AES2 import AESCBC
 from lib.pypresent import Present
 from lib import common
 
 
 class TcpSlave():
 
-    def __init__(self, slave_id=1, name='0', address=0, length=500):
-        self.slave_id = slave_id
-        self.name = name
-        self.address = address
-        self.length = length
-        self.DH = pyDH.DiffieHellman(5)
+    def __init__(self, host='127.0.0.1', port=7000, max_socket=5):
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind((host, port))
+        self.socket.setblocking(False)
+        self.max_socket = max_socket
+        self.clients = []
+        self.cipher = ""
+        self.shared_key = None
+        self.iv = None
+        self.DH = pyDH.DiffieHellman(14)
         self.PK = self.DH.gen_public_key()
-        self.server = self.init_modbus_slave()
+        t = threading.Thread(target=self.start_server)
+        t.start()
 
     """
     用AES解密master傳來的資料
@@ -42,22 +56,12 @@ class TcpSlave():
     """
 
     def dec_AES(self):
-        aead = AEAD()
-        slave = self.server.get_slave(self.slave_id)
-        values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
-        tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
-        cts = common.combine(values, 0, tmp_nones[0])
-        nones = common.combine(tmp_nones, 1, tmp_nones[0])
-        result = []
-        start_time = time.time()
-        for i in range(tmp_nones[0]):
-            result.append(aead.decrypt(cts[i].to_bytes(17, sys.byteorder), nones[i].to_bytes(12, sys.byteorder),
-                                       b'0', key=bytes.fromhex(share)))
-        end_time = time.time()
-        print("after decrypt value is  " + str(result))
-        print("decrypt time is  " + str(end_time - start_time))
-        return str(result)
+        aescbc = AESCBC()
+        ciphertext = base64.b64decode(self.cipher)
+        key = hashlib.sha256(self.shared_key.encode()).digest()
+        plaintext = aescbc.decrypt(ciphertext, key, self.iv)
+
+        return str(plaintext)
 
     """
     用present解密master傳來的資料
@@ -67,26 +71,20 @@ class TcpSlave():
     """
 
     def dec_present(self):
-        slave = self.server.get_slave(self.slave_id)
-        values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
-        tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
-        cts = common.combine(values, 0, tmp_nones[0])
-        result = []
-        key = bytes.fromhex(share)[:10]
+        plaintexts = []
+        key = self.shared_key[:20]
+        key = bytes.fromhex(key)
         cipher = Present(key)
-        start_time = time.time()
-        for i in range(tmp_nones[0]):
-            result.append(
-                int.from_bytes(
-                    cipher.decrypt(
-                        cts[i].to_bytes(8, byteorder="big")
-                    ),  "big"
-                )
-            )
-        end_time = time.time()
-        print("after decrypt value is  " + str(result))
-        print("decrypt time is  " + str(end_time - start_time))
+        ciphertext = bytearray(base64.b64decode(self.cipher))
+        for i in range(8, len(ciphertext)+8, 8):
+            plaintext = cipher.decrypt(ciphertext[i-8:i])
+            plaintext = Padding.removePadding(
+                plaintext.decode(), blocksize=8, mode='CMS')
+            plaintext = base64.b64decode(plaintext).decode()
+            plaintexts.append(plaintext)
+
+        result = ''.join(plaintexts)
+
         return str(result)
 
     """
@@ -97,21 +95,23 @@ class TcpSlave():
     """
 
     def dec_speck(self):
-        slave = self.server.get_slave(self.slave_id)
-        values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
-        tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
-        cts = common.combine(values, 0, tmp_nones[0])
-        result = []
-        key = int(share, 16)
-        cipher = SpeckCipher(key)
-        start_time = time.time()
-        for i in range(tmp_nones[0]):
-            result.append(cipher.decrypt(cts[i]))
-        end_time = time.time()
-        print("after decrypt value is  " + str(result))
-        print("decrypt time is  " + str(end_time - start_time))
-        return str(result)
+        plaintexts = []
+        key = self.shared_key[:32]
+        key = int(key, 16)
+        w = SpeckCipher(key, key_size=128, block_size=64)
+        ciphertext = bytearray(base64.b64decode(self.cipher))
+        for i in range(8, len(ciphertext)+8, 8):
+            plaintext = w.decrypt(int.from_bytes(
+                ciphertext[i-8:i], byteorder='big'))
+            hexstr = hex(plaintext)
+            plaintext = bytes.fromhex(hexstr[2:])
+            plaintext = Padding.removePadding(
+                plaintext.decode(), blocksize=8, mode='CMS')
+            plaintext = base64.b64decode(plaintext).decode()
+            plaintexts.append(plaintext)
+
+        result = ''.join(plaintexts)
+        return result
 
     """
     用simon解密master傳來的資料
@@ -121,141 +121,88 @@ class TcpSlave():
     """
 
     def dec_simon(self):
-        slave = self.server.get_slave(self.slave_id)
-        values = slave.get_values(self.name, self.address, self.length)
-        print("receive values is       " + str(values))
-        tmp_nones = self.server.get_slave(3).get_values('nonce', 0, 500)
-        cts = common.combine(values, 0, tmp_nones[0])
-        result = []
-        key = int(share, 16)
-        cipher = SimonCipher(key)
-        start_time = time.time()
-        for i in range(tmp_nones[0]):
-            result.append(cipher.decrypt(cts[i]))
-        end_time = time.time()
-        print("after decrypt value is  " + str(result))
-        print("decrypt time is  " + str(end_time - start_time))
-        return str(result)
+        plaintexts = []
+        key = self.shared_key[:32]
+        key = int(key, 16)
+        w = SimonCipher(key, key_size=128, block_size=64)
+        ciphertext = bytearray(base64.b64decode(self.cipher))
+        for i in range(8, len(ciphertext)+8, 8):
+            plaintext = w.decrypt(int.from_bytes(
+                ciphertext[i-8:i], byteorder='big'))
+            hexstr = hex(plaintext)
+            plaintext = bytes.fromhex(hexstr[2:])
+            plaintext = Padding.removePadding(
+                plaintext.decode(), blocksize=8, mode='CMS')
+            plaintext = base64.b64decode(plaintext).decode()
+            plaintexts.append(plaintext)
+
+        result = ''.join(plaintexts)
+        return result
+
+    def _get_key(self, m_pk):
+        self.shared_key = self.DH.gen_shared_key(m_pk)
+        print('generate share key:\t' + str(self.shared_key))
 
     """
-    初始modbus_slave設定
-    Return:
-        server: instance of modbus slave
-    """
-
-    def init_modbus_slave(self):
-        server = modbus_tcp.TcpServer()
-        server.start()
-        slave_1 = server.add_slave(1)
-        slave_1.add_block('0', cst.HOLDING_REGISTERS, 0, 500)
-        slave_2 = server.add_slave(2)
-        slave_2.add_block('DH_PK', cst.HOLDING_REGISTERS, 0, 800)
-        sp_num = common.split_num(self.PK, 4)
-        slave_2.set_values('DH_PK', 0, [int(s)
-                           for s in sp_num] + [len(sp_num[-1])])
-        server.add_slave(3).add_block('nonce', cst.HOLDING_REGISTERS, 0, 500)
-        return server
-
-    """
-    取得diffie hellman shared key(需先執行才加密，先執行master再執行slave)
+    取得diffie hellman shared key(不需執行)
     Return:
         share: shared key
     """
 
     def get_key(self):
-        global share
-        values = [str(num)
-                  for num in self.server.get_slave(1).get_values('0', 0, 117)]
-        m_pk = common.merge_num(values[:-2])
-        m_pk += values[-2].rjust(int(values[-1]), '0')
-        share = self.DH.gen_shared_key(int(m_pk))
-        print('generate share key:\t' + str(share))
-        return share
+        return self.shared_key
+
+    def start_server(self):
+        self.socket.listen(5)
+        print("listening")
+        while True:
+            try:
+
+                client, addr = self.socket.accept()
+                print('Client address:', addr)
+                print('hi')
+                self.clients.append(client)
+            except Exception as e:
+                pass
+            for client in self.clients:
+                try:
+                    req = client.recv(8192)
+                    if req.decode().startswith("dh:"):
+                        self._get_key(int(req.decode().split(':')[1]))
+                        client.send(str(self.PK).encode())
+                    elif req.decode().startswith("iv:"):
+                        self.iv = int(req.decode().split(':')[1])
+                        print('iv=', self.iv)
+                    else:
+                        self.cipher = req
+                        print('cypher=', req)
+                        client.close()
+                        self.clients.remove(client)
+                        print('end')
+                except Exception as e:
+                    pass
 
 
 def main():
     """main"""
-    # DH public ley
-    DH = pyDH.DiffieHellman(5)
-    PK = DH.gen_public_key()
-    global share
-    logger = modbus_tk.utils.create_logger(
-        name="console", record_format="%(message)s")
-    aead = AEAD()
+    tcpslave = TcpSlave()
+    while True:
+        intext = input('please input message: ')
+        if intext == 'aes':
+            result = tcpslave.dec_AES()
+            print(result)
 
-    try:
-        tcpslave = TcpSlave()
-        # Create the server
-        logger.info("running...")
-        logger.info("enter 'quit' for closing the server")
-        logger.info("enter 'add_slave [id]' to add a new server with id")
-        logger.info("enter 'add_block [id] [block_name] [block_type] [starting_address] [length]' to add a block, where block_type is describe as following:\n\t COILS = 1 DISCRETE_INPUTS = 2 HOLDING_REGISTERS = 3 ANALOG_INPUTS = 4")
-        logger.info(
-            "enter 'set_values [id] [block_name] [address] [bit_values ...]' to add multi value in the block")
-        logger.info(
-            "enter 'get_values [id] [block_name] [address] [length]' to add multi value in the block")
+        if intext == 'pre':
+            result = tcpslave.dec_present()
+            print(result)
 
-        while True:
-            try:
-                cmd = sys.stdin.readline()
-                args = cmd.split()
+        if intext == 'spe':
+            result = tcpslave.dec_speck()
+            print(result)
 
-                if cmd.find('quit') == 0:
-                    sys.stdout.write('bye-bye\r\n')
-                    break
-
-                # elif args[0] == 'add_slave':
-                #     slave_id = int(args[1])
-                #     server.add_slave(slave_id)
-                #     sys.stdout.write('done: slave %d added\r\n' % slave_id)
-
-                # elif args[0] == 'add_block':
-                #     slave_id = int(args[1])
-                #     name = args[2]
-                #     block_type = int(args[3])
-                #     starting_address = int(args[4])
-                #     length = int(args[5])
-                #     slave = server.get_slave(slave_id)
-                #     slave.add_block(name, block_type, starting_address, length)
-                #     sys.stdout.write('done: block %s added\r\n' % name)
-
-                # elif args[0] == 'set_values':
-                #     slave_id = int(args[1])
-                #     name = args[2]
-                #     address = int(args[3])
-                #     values = []
-                #     for val in args[4:]:
-                #         values.append(int(val))
-                #     slave = server.get_slave(slave_id)
-                #     slave.set_values(name, address, values)
-                #     values = slave.get_values(name, address, len(values))
-                #     sys.stdout.write('done: values written: %s\r\n' % str(values))
-
-                elif args[0] == 'get_present_values':
-                    result = tcpslave.dec_present()
-                    print(result)
-
-                elif args[0] == 'get_speck_values':
-                    result = tcpslave.dec_speck()
-                    print(result)
-
-                elif args[0] == 'get_simon_values':
-                    result = tcpslave.dec_simon()
-                    print(result)
-
-                elif args[0] == 'get_values':
-                    result = tcpslave.dec_AES()
-                    print(result)
-
-                elif args[0] == 'get_dh':
-                    tcpslave.get_key()
-
-                else:
-                    sys.stdout.write("unknown command %s\r\n" % args[0])
-            except Exception as e:
-                logger.error(e)
-    finally:
-        print()
+        if intext == 'sim':
+            result = tcpslave.dec_simon()
+            print(result)
 
 
 if __name__ == "__main__":

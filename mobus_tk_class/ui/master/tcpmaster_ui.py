@@ -86,16 +86,17 @@ class MainWindow(QWidget):
         self.show_log("The generated shared key is " + str(dhKey))
         
     def __AES_encrypt(self):
+
         try:
             text = self.__msgEdit.text()
             cts = self.master.enc_AES([text])
             self.show_log("The original value is " + str(text))
             self.show_log("After AES encryption, the values are " + str(cts))
-            self.master.send_to_slave(cts)
+            #self.master.send_to_slave(cts)
         except Exception as e:
             exceptionLog = str(e)   
             self.show_log("Exception:" + exceptionLog)
-        
+
 
     def __handleEncryptClick(self):
         text = self.__msgEdit.text()

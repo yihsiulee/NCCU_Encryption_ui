@@ -90,7 +90,7 @@ class MainWindow(QWidget):
         cts = self.master.enc_AES([text])
         self.show_log("The original value is " + str(text))
         self.show_log("After AES encryption, the values are " + str(cts))
-        self.master.send_to_slave(cts)
+        #self.master.send_to_slave(cts)
 
     def __handleEncryptClick(self):
         text = self.__msgEdit.text()
@@ -108,7 +108,7 @@ class MainWindow(QWidget):
                 cts = self.master.enc_simon([text])
                 self.show_log("After Simon encryption, the values are " + str(cts))
         
-        self.master.send_to_slave(cts)
+        #self.master.send_to_slave(cts)
                 
 
 

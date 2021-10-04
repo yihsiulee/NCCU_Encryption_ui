@@ -35,7 +35,7 @@ class TcpMaster():
     def __init__(self, host='127.0.0.1', port=7000, max_socket=5):
         self.host = host
         self.port = port
-        self.shared_key='oxr9j02938hfa;fknasdon30'
+        self.shared_key='b3e9917a43cc089c389cfd50e4d8bd6d316d72edcb73698ed0ffbe754506fa95'
 
     """
     用AES加密
@@ -117,8 +117,10 @@ class TcpMaster():
             plaintext = Padding.appendPadding(
                 plaintext, blocksize=8, mode='CMS')
             encrypted = w.encrypt(int.from_bytes(
-                plaintext.encode(), byteorder='big'))
-            encrypted = bytes.fromhex(hex(encrypted)[2:])
+                plaintext.encode('ascii'), byteorder='big'))
+            hex_str = hex(encrypted)[2:].zfill(16)
+            # print(hex_str)
+            encrypted = bytes.fromhex(hex_str)
             encrypteds.extend(encrypted)
         self.socket.send(base64.b64encode(encrypteds))
         self.socket.close()
@@ -148,8 +150,10 @@ class TcpMaster():
             plaintext = Padding.appendPadding(
                 plaintext, blocksize=8, mode='CMS')
             encrypted = w.encrypt(int.from_bytes(
-                plaintext.encode(), byteorder='big'))
-            encrypted = bytes.fromhex(hex(encrypted)[2:])
+                plaintext.encode('ascii'), byteorder='big'))
+            hex_str = hex(encrypted)[2:].zfill(16)
+            # print(hex_str)
+            encrypted = bytes.fromhex(hex_str)
             encrypteds.extend(encrypted)
         self.socket.send(base64.b64encode(encrypteds))
         self.socket.close()

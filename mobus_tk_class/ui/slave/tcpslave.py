@@ -41,7 +41,7 @@ class TcpSlave():
         self.max_socket = max_socket
         self.clients = []
         self.cipher = ""
-        self.shared_key = 'oxr9j02938hfa;fknasdon30'
+        self.shared_key = 'b3e9917a43cc089c389cfd50e4d8bd6d316d72edcb73698ed0ffbe754506fa95'
         self.iv = None
         self.DH = pyDH.DiffieHellman(14)
         self.PK = self.DH.gen_public_key()

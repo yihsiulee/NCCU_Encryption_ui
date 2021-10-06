@@ -1,0 +1,13 @@
+cffi==1.14.6
+cryptography==3.4.8
+modbus-tk==1.1.2
+Padding==0.5
+pycparser==2.20
+pycrypto==2.6.1
+pyDH==0.1.6
+pyperclip==1.8.2
+PyQt5==5.15.4
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.9.0
+pyserial==3.5
+simonspeckciphers==1.0.0

@@ -109,15 +109,15 @@ class MainWindow(QWidget):
 	        elif self.algoSet == 1:
 	                values, result = self.slave.dec_present()
 	                self.show_log("The receive values are" + str(values) )
-	                self.show_log("After PRESENT encryption, the original value is " + str(result))
+	                self.show_log("After PRESENT decryption, the original value is " + str(result))
 	        elif self.algoSet == 2:
 	                values, result = self.slave.dec_speck()
 	                self.show_log("The receive values are" + str(values) )
-	                self.show_log("After SPECK encryption, the original value is " + str(result))
+	                self.show_log("After SPECK decryption, the original value is " + str(result))
 	        else:
 	                values, result = self.slave.dec_simon()
 	                self.show_log("The receive values are" + str(values) )
-	                self.show_log("After Simon encryption, the original value is " + str(result))
+	                self.show_log("After Simon decryption, the original value is " + str(result))
 	    
 	        end_time = time.time()
 	        self.show_log("The decryption time is  " + str(end_time - start_time))
